@@ -19,12 +19,16 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+results.xml
+coverage.xml
+coverage*.xml
 
 # Synthesis / OpenROAD artifacts
 *.netlist
 *.json
 *.blif
 *.edif
+synth/*_sky130hd.v
 runs/
 results/
 
