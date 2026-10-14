@@ -4,8 +4,9 @@
 #   hdl_sim  / verilator runner: verilator, iverilog, cocotb, peakrdl
 #   hdl_synth / yosys runner:    yosys
 #
-# make lint MUST NOT run on the yosys runner: `verilator` there is a stub
-# that exits 78. Declare lint as its own hdl_sim verification command.
+# CRITICAL: make lint is an hdl_sim-only verification command.
+# Running it on the yosys runner fails with stub exit 78 because
+# verilator is not available there. Never list lint under hdl_synth.
 version: 1
 
 toolchains:
@@ -19,6 +20,7 @@ toolchains:
     commands:
       - make synth
 
+# Flat command → runner map (explicit; do not infer from Makefile alone).
 commands:
   - command: make lint
     toolchain: hdl_sim

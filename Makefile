@@ -32,15 +32,18 @@ setup-check:
 	@echo "setup-check: rtl/ tb/ synth/ docs/ and setup.sh present"
 
 # ---------------------------------------------------------------------------
-# make lint — Verilator strict lint
+# make lint — Verilator strict lint (hdl_sim / verilator runner ONLY)
 # TOOLCHAIN: hdl_sim
 # RUNNER: verilator
-# Verilator is not available in the yosys runner; do not route lint there.
+# Must NOT run on the yosys runner: verilator there is a stub (exit 78).
+# Declared in toolchains.yml + verification.yml as its own hdl_sim gate.
 # ---------------------------------------------------------------------------
 VERILATOR       ?= verilator
-# -Wall: catch width mismatches, unused signals, and style issues.
-# --lint-only: syntax/logic checks without building a simulation binary.
-VERILATOR_FLAGS ?= --lint-only -Wall -sv
+# --lint-only: syntax / width / logic checks without building a sim binary.
+# -Wall:      strict warnings (width mismatches, unused nets, etc.).
+# -sv:        treat sources as SystemVerilog.
+# --assert:   parse/check SVA (platform sims also require --assert).
+VERILATOR_FLAGS ?= --lint-only -Wall -sv --assert
 LINT_LOG        ?= lint.log
 
 lint:
@@ -49,6 +52,7 @@ lint:
 		exit 1; \
 	fi
 	@echo "lint: $(VERILATOR) $(VERILATOR_FLAGS) $(RTL_SRCS)"
+	@rm -f "$(LINT_LOG)"
 	@set +e; \
 	$(VERILATOR) $(VERILATOR_FLAGS) $(RTL_SRCS) > "$(LINT_LOG)" 2>&1; \
 	status=$$?; \

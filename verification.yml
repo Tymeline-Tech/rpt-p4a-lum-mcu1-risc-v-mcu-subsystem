@@ -1,5 +1,6 @@
 # Machine-checkable verification contract for LUM-MCU1.
 # Declares each gate command on the toolchain that actually provides its tools.
+# make lint MUST use hdl_sim / verilator — never the yosys runner.
 version: 1
 verification:
   - id: lint
