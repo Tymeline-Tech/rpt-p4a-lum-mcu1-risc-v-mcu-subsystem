@@ -1,0 +1,35 @@
+# LUM-MCU1 verification runner map.
+# Each make entry point runs in exactly one container (fresh checkout).
+#
+#   hdl_sim  / verilator runner: verilator, iverilog, cocotb, peakrdl
+#   hdl_synth / yosys runner:    yosys
+#
+# make lint MUST NOT run on the yosys runner: `verilator` there is a stub
+# that exits 78. Declare lint as its own hdl_sim verification command.
+version: 1
+
+toolchains:
+  hdl_sim:
+    runner: verilator
+    commands:
+      - make lint
+      - make sim
+      - make sim block=alu block=regfile block=control
+  hdl_synth:
+    runner: yosys
+    commands:
+      - make synth
+
+commands:
+  - command: make lint
+    toolchain: hdl_sim
+    runner: verilator
+  - command: make sim
+    toolchain: hdl_sim
+    runner: verilator
+  - command: make sim block=alu block=regfile block=control
+    toolchain: hdl_sim
+    runner: verilator
+  - command: make synth
+    toolchain: hdl_synth
+    runner: yosys
