@@ -1,0 +1,210 @@
+/* Minimal sky130hd (sky130_fd_sc_hd) liberty subset for LUM-MCU1 smoke synthesis.
+ *
+ * Intentionally small: enough combinational + sequential cells for Yosys
+ * dfflibmap/abc technology mapping of the foundation smoke DUT. Not a full PDK
+ * extract — later OpenROAD stories can swap in the real sky130hd liberty.
+ */
+library(sky130_fd_sc_hd__tt) {
+  delay_model : table_lookup;
+  time_unit : "1ns";
+  voltage_unit : "1V";
+  current_unit : "1mA";
+  pulling_resistance_unit : "1kohm";
+  capacitive_load_unit(1, pf);
+  leakage_power_unit : "1nW";
+  nom_process : 1.0;
+  nom_temperature : 25.0;
+  nom_voltage : 1.8;
+
+  cell(sky130_fd_sc_hd__inv_2) {
+    area : 0.75;
+    pin(A) { direction : input; capacitance : 0.01; }
+    pin(Y) {
+      direction : output;
+      function : "(!A)";
+      timing() {
+        related_pin : "A";
+        timing_sense : negative_unate;
+        cell_rise(scalar) { values("0.10"); }
+        cell_fall(scalar) { values("0.10"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+    }
+  }
+
+  cell(sky130_fd_sc_hd__buf_2) {
+    area : 1.00;
+    pin(A) { direction : input; capacitance : 0.01; }
+    pin(X) {
+      direction : output;
+      function : "A";
+      timing() {
+        related_pin : "A";
+        timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.10"); }
+        cell_fall(scalar) { values("0.10"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+    }
+  }
+
+  cell(sky130_fd_sc_hd__nand2_2) {
+    area : 1.00;
+    pin(A) { direction : input; capacitance : 0.01; }
+    pin(B) { direction : input; capacitance : 0.01; }
+    pin(Y) {
+      direction : output;
+      function : "(!(A&B))";
+      timing() {
+        related_pin : "A";
+        timing_sense : negative_unate;
+        cell_rise(scalar) { values("0.12"); }
+        cell_fall(scalar) { values("0.12"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+      timing() {
+        related_pin : "B";
+        timing_sense : negative_unate;
+        cell_rise(scalar) { values("0.12"); }
+        cell_fall(scalar) { values("0.12"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+    }
+  }
+
+  cell(sky130_fd_sc_hd__nor2_2) {
+    area : 1.00;
+    pin(A) { direction : input; capacitance : 0.01; }
+    pin(B) { direction : input; capacitance : 0.01; }
+    pin(Y) {
+      direction : output;
+      function : "(!(A|B))";
+      timing() {
+        related_pin : "A";
+        timing_sense : negative_unate;
+        cell_rise(scalar) { values("0.12"); }
+        cell_fall(scalar) { values("0.12"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+      timing() {
+        related_pin : "B";
+        timing_sense : negative_unate;
+        cell_rise(scalar) { values("0.12"); }
+        cell_fall(scalar) { values("0.12"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+    }
+  }
+
+  cell(sky130_fd_sc_hd__and2_2) {
+    area : 1.25;
+    pin(A) { direction : input; capacitance : 0.01; }
+    pin(B) { direction : input; capacitance : 0.01; }
+    pin(X) {
+      direction : output;
+      function : "(A&B)";
+      timing() {
+        related_pin : "A";
+        timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.14"); }
+        cell_fall(scalar) { values("0.14"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+      timing() {
+        related_pin : "B";
+        timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.14"); }
+        cell_fall(scalar) { values("0.14"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+    }
+  }
+
+  cell(sky130_fd_sc_hd__or2_2) {
+    area : 1.25;
+    pin(A) { direction : input; capacitance : 0.01; }
+    pin(B) { direction : input; capacitance : 0.01; }
+    pin(X) {
+      direction : output;
+      function : "(A|B)";
+      timing() {
+        related_pin : "A";
+        timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.14"); }
+        cell_fall(scalar) { values("0.14"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+      timing() {
+        related_pin : "B";
+        timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.14"); }
+        cell_fall(scalar) { values("0.14"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+    }
+  }
+
+  /* Async active-low reset DFF — matches smoke.sv always_ff + rst_n. */
+  cell(sky130_fd_sc_hd__dfrtp_1) {
+    area : 5.00;
+    ff("IQ", "IQ_N") {
+      next_state : "D";
+      clocked_on : "CLK";
+      clear : "(!RESET_B)";
+    }
+    pin(D) { direction : input; capacitance : 0.01; }
+    pin(CLK) { direction : input; capacitance : 0.01; clock : true; }
+    pin(RESET_B) { direction : input; capacitance : 0.01; }
+    pin(Q) {
+      direction : output;
+      function : "IQ";
+      timing() {
+        related_pin : "CLK";
+        timing_type : rising_edge;
+        cell_rise(scalar) { values("0.20"); }
+        cell_fall(scalar) { values("0.20"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+      timing() {
+        related_pin : "RESET_B";
+        timing_type : clear;
+        timing_sense : positive_unate;
+        cell_fall(scalar) { values("0.15"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+    }
+  }
+
+  cell(sky130_fd_sc_hd__dfxtp_1) {
+    area : 4.50;
+    ff("IQ", "IQ_N") {
+      next_state : "D";
+      clocked_on : "CLK";
+    }
+    pin(D) { direction : input; capacitance : 0.01; }
+    pin(CLK) { direction : input; capacitance : 0.01; clock : true; }
+    pin(Q) {
+      direction : output;
+      function : "IQ";
+      timing() {
+        related_pin : "CLK";
+        timing_type : rising_edge;
+        cell_rise(scalar) { values("0.20"); }
+        cell_fall(scalar) { values("0.20"); }
+        rise_transition(scalar) { values("0.05"); }
+        fall_transition(scalar) { values("0.05"); }
+      }
+    }
+  }
+}
