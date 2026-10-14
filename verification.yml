@@ -1,0 +1,26 @@
+# Machine-checkable verification contract for LUM-MCU1.
+# Declares each gate command on the toolchain that actually provides its tools.
+version: 1
+verification:
+  - id: lint
+    command: make lint
+    toolchain: hdl_sim
+    runner: verilator
+    artifacts:
+      - MAKFILE_DEFINED
+      - LINT_TARGET_PASS
+  - id: sim
+    command: make sim block=alu block=regfile block=control
+    toolchain: hdl_sim
+    runner: verilator
+    artifacts:
+      - MAKFILE_DEFINED
+      - SIM_TARGET_PASS
+      - coverage.xml
+  - id: synth
+    command: make synth
+    toolchain: hdl_synth
+    runner: yosys
+    artifacts:
+      - MAKFILE_DEFINED
+      - SYNTH_TARGET_PASS
