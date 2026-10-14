@@ -14,6 +14,7 @@ toolchains:
     commands:
       - make lint
       - make sim
+      - make sim block=alu block=regfile block=control
   hdl_synth:
     runner: yosys
     commands:
@@ -24,6 +25,9 @@ commands:
     toolchain: hdl_sim
     runner: verilator
   - command: make sim
+    toolchain: hdl_sim
+    runner: verilator
+  - command: make sim block=alu block=regfile block=control
     toolchain: hdl_sim
     runner: verilator
   - command: make synth

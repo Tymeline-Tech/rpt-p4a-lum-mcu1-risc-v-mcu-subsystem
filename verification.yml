@@ -10,7 +10,7 @@ verification:
       - MAKFILE_DEFINED
       - LINT_TARGET_PASS
   - id: sim
-    command: make sim
+    command: make sim block=alu block=regfile block=control
     toolchain: hdl_sim
     runner: verilator
     artifacts:
