@@ -140,6 +140,7 @@ sim-one:
 	test -f "$$tb" || (echo "error: missing $$tb" >&2; exit 1); \
 	echo "sim-one: block=$(block) TOPLEVEL=$(block) MODULE=core.$(block)_cocotb"; \
 	mkdir -p "$(SIM_BUILD)/$(block)"; \
+	rm -f results.xml; \
 	set +e; \
 	PYTHONPATH="tb$${PYTHONPATH:+:$$PYTHONPATH}" \
 	SIM="$(SIM)" TOPLEVEL_LANG="$(TOPLEVEL_LANG)" TOPLEVEL="$(block)" \
