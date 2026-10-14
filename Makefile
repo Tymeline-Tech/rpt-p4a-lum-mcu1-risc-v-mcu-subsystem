@@ -19,7 +19,8 @@ SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 .DELETE_ON_ERROR:
 
-.PHONY: setup-check lint sim sim-one sim-unit-blocks synth
+.PHONY: setup-check lint sim sim-one sim-unit-blocks synth \
+	instruction_isa_core extended
 
 # ---------------------------------------------------------------------------
 # Shared RTL discovery
@@ -55,18 +56,29 @@ VERILATOR       ?= verilator
 VERILATOR_FLAGS ?= --lint-only -Wall -sv --assert
 LINT_LOG        ?= lint.log
 
+# Hierarchical tops need leaf units on the same verilator command line.
+HIER_LINT_DEPS_instruction_isa_core := rtl/core/alu.sv rtl/core/regfile.sv rtl/core/control.sv
+
 lint:
 	@if [ -z "$(RTL_SRCS)" ]; then \
 		echo "error: no SystemVerilog sources found under rtl/" >&2; \
 		exit 1; \
 	fi
-	@echo "lint: $(VERILATOR) $(VERILATOR_FLAGS) (per-file; avoids multi-top name clashes)"
+	@echo "lint: $(VERILATOR) $(VERILATOR_FLAGS) (per-file; hierarchical tops with deps)"
 	@: > "$(LINT_LOG)"; \
 	status=0; \
 	for f in $(RTL_SRCS); do \
 		echo "lint: $$f" | tee -a "$(LINT_LOG)"; \
 		set +e; \
-		$(VERILATOR) $(VERILATOR_FLAGS) "$$f" >> "$(LINT_LOG)" 2>&1; \
+		case "$$f" in \
+			rtl/core/instruction_isa_core.sv) \
+				$(VERILATOR) $(VERILATOR_FLAGS) --top-module instruction_isa_core \
+					"$$f" $(HIER_LINT_DEPS_instruction_isa_core) >> "$(LINT_LOG)" 2>&1; \
+				;; \
+			*) \
+				$(VERILATOR) $(VERILATOR_FLAGS) "$$f" >> "$(LINT_LOG)" 2>&1; \
+				;; \
+		esac; \
 		s=$$?; \
 		set -e; \
 		if [ $$s -ne 0 ]; then \
@@ -163,6 +175,54 @@ sim-one:
 	fi; \
 	test -f "$(COVERAGE_XML)" || (echo "error: $(COVERAGE_XML) not produced by block=$(block)" >&2; exit 1); \
 	echo "sim-one: block=$(block) OK"
+
+# ---------------------------------------------------------------------------
+# make instruction_isa_core — RV32I directed cocotb suite (LW/SW/BNE/BLE/JAL/JALR)
+# Invoked as: make sim instruction_isa_core extended
+# TOOLCHAIN: hdl_sim
+# ---------------------------------------------------------------------------
+ISA_CORE_TOP     ?= instruction_isa_core
+ISA_CORE_MODULE  ?= core.instruction_base_i
+ISA_CORE_SRCS    := rtl/core/alu.sv rtl/core/regfile.sv rtl/core/control.sv \
+	rtl/core/instruction_isa_core.sv
+
+instruction_isa_core:
+	@test -f tb/core/instruction_base_i.py || \
+		(echo "error: tb/core/instruction_base_i.py missing" >&2; exit 1)
+	@test -f rtl/core/instruction_isa_core.sv || \
+		(echo "error: rtl/core/instruction_isa_core.sv missing" >&2; exit 1)
+	@echo "instruction_isa_core: cocotb MODULE=$(ISA_CORE_MODULE) TOPLEVEL=$(ISA_CORE_TOP)"
+	@mkdir -p "$(SIM_BUILD)/isa_core"
+	@rm -f coverage*.xml results.xml
+	@set +e; \
+	PYTHONPATH="tb$${PYTHONPATH:+:$$PYTHONPATH}" \
+	SIM="$(SIM)" TOPLEVEL_LANG="$(TOPLEVEL_LANG)" TOPLEVEL="$(ISA_CORE_TOP)" \
+	COCOTB_TEST_MODULES="$(ISA_CORE_MODULE)" WAVES="$(WAVES)" \
+	SIM_BUILD="$(SIM_BUILD)/isa_core" \
+	VERILOG_SOURCES="$(ISA_CORE_SRCS)" COMPILE_ARGS="$(COMPILE_ARGS)" \
+	$(MAKE) -f "$$($(COCOTB_CONFIG) --makefiles)/Makefile.sim" results.xml; \
+	status=$$?; \
+	set -e; \
+	if [ $$status -ne 0 ]; then \
+		echo "error: instruction_isa_core cocotb failed (exit $$status)" >&2; \
+		exit $$status; \
+	fi
+	@test -f "$(COVERAGE_XML)" || \
+		(echo "error: $(COVERAGE_XML) not produced by instruction_isa_core" >&2; exit 1)
+	@n=$$(ls coverage*.xml 2>/dev/null | wc -l); \
+	if [ "$$n" -ne 1 ]; then \
+		echo "error: expected exactly one coverage*.xml, found $$n" >&2; \
+		ls -la coverage*.xml >&2 || true; \
+		exit 1; \
+	fi
+	@touch MAKFILE_DEFINED SIM_TARGET_PASS
+	@echo "instruction_isa_core: OK — wrote $(COVERAGE_XML) MAKFILE_DEFINED SIM_TARGET_PASS"
+
+# Placeholder gate for later M/C extended ISA steps; requires the I-type suite.
+extended: instruction_isa_core
+	@test -f "$(COVERAGE_XML)" || \
+		(echo "error: extended requires $(COVERAGE_XML) from instruction_isa_core" >&2; exit 1)
+	@echo "extended: I-type foundation ready (M/C suites deferred to later story steps)"
 
 # ---------------------------------------------------------------------------
 # make synth — Yosys sky130hd-oriented synthesis
