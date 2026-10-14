@@ -20,7 +20,7 @@ SHELL := /bin/bash
 .DELETE_ON_ERROR:
 
 .PHONY: setup-check lint sim sim-one sim-unit-blocks synth \
-	instruction_isa_core extended
+	instruction_isa_core extended instruction_trap
 
 # ---------------------------------------------------------------------------
 # Shared RTL discovery
@@ -183,6 +183,7 @@ sim-one:
 # ---------------------------------------------------------------------------
 ISA_CORE_TOP     ?= instruction_isa_core
 ISA_CORE_MODULE  ?= core.instruction_base_i
+ISA_TRAP_MODULE  ?= core.instruction_trap
 ISA_CORE_SRCS    := rtl/core/alu.sv rtl/core/regfile.sv rtl/core/control.sv \
 	rtl/core/instruction_isa_core.sv
 
@@ -218,11 +219,50 @@ instruction_isa_core:
 	@touch MAKFILE_DEFINED SIM_TARGET_PASS
 	@echo "instruction_isa_core: OK — wrote $(COVERAGE_XML) MAKFILE_DEFINED SIM_TARGET_PASS"
 
-# Placeholder gate for later M/C extended ISA steps; requires the I-type suite.
-extended: instruction_isa_core
+# C-extension expansion + illegal-instruction trap suite (instruction_trap.py).
+instruction_trap:
+	@test -f tb/core/instruction_trap.py || \
+		(echo "error: tb/core/instruction_trap.py missing" >&2; exit 1)
+	@test -f rtl/core/instruction_isa_core.sv || \
+		(echo "error: rtl/core/instruction_isa_core.sv missing" >&2; exit 1)
+	@echo "instruction_trap: cocotb MODULE=$(ISA_TRAP_MODULE) TOPLEVEL=$(ISA_CORE_TOP)"
+	@mkdir -p "$(SIM_BUILD)/isa_trap"
+	@rm -f coverage*.xml results.xml
+	@set +e; \
+	PYTHONPATH="tb$${PYTHONPATH:+:$$PYTHONPATH}" \
+	SIM="$(SIM)" TOPLEVEL_LANG="$(TOPLEVEL_LANG)" TOPLEVEL="$(ISA_CORE_TOP)" \
+	COCOTB_TEST_MODULES="$(ISA_TRAP_MODULE)" WAVES="$(WAVES)" \
+	SIM_BUILD="$(SIM_BUILD)/isa_trap" \
+	VERILOG_SOURCES="$(ISA_CORE_SRCS)" COMPILE_ARGS="$(COMPILE_ARGS)" \
+	$(MAKE) -f "$$($(COCOTB_CONFIG) --makefiles)/Makefile.sim" results.xml; \
+	status=$$?; \
+	set -e; \
+	if [ $$status -ne 0 ]; then \
+		echo "error: instruction_trap cocotb failed (exit $$status)" >&2; \
+		exit $$status; \
+	fi
 	@test -f "$(COVERAGE_XML)" || \
-		(echo "error: extended requires $(COVERAGE_XML) from instruction_isa_core" >&2; exit 1)
-	@echo "extended: I-type foundation ready (M/C suites deferred to later story steps)"
+		(echo "error: $(COVERAGE_XML) not produced by instruction_trap" >&2; exit 1)
+	@n=$$(ls coverage*.xml 2>/dev/null | wc -l); \
+	if [ "$$n" -ne 1 ]; then \
+		echo "error: expected exactly one coverage*.xml, found $$n" >&2; \
+		ls -la coverage*.xml >&2 || true; \
+		exit 1; \
+	fi
+	@touch MAKFILE_DEFINED SIM_TARGET_PASS
+	@echo "instruction_trap: OK — wrote $(COVERAGE_XML) MAKFILE_DEFINED SIM_TARGET_PASS"
+
+# Extended ISA gate: I-type foundation then C / illegal-trap directed suite.
+# Invoked as: make sim instruction_isa_core extended
+extended: instruction_isa_core instruction_trap
+	@test -f "$(COVERAGE_XML)" || \
+		(echo "error: extended requires $(COVERAGE_XML) from instruction_trap" >&2; exit 1)
+	@n=$$(ls coverage*.xml 2>/dev/null | wc -l); \
+	if [ "$$n" -ne 1 ]; then \
+		echo "error: extended expected exactly one coverage*.xml, found $$n" >&2; \
+		exit 1; \
+	fi
+	@echo "extended: I-type + C/illegal trap suites OK"
 
 # ---------------------------------------------------------------------------
 # make synth — Yosys sky130hd-oriented synthesis
