@@ -60,16 +60,23 @@ lint:
 		echo "error: no SystemVerilog sources found under rtl/" >&2; \
 		exit 1; \
 	fi
-	@echo "lint: $(VERILATOR) $(VERILATOR_FLAGS) $(RTL_SRCS)"
-	@set +e; \
-	$(VERILATOR) $(VERILATOR_FLAGS) $(RTL_SRCS) > "$(LINT_LOG)" 2>&1; \
-	status=$$?; \
-	set -e; \
-	if [ $$status -ne 0 ]; then \
-		echo "error: verilator lint failed (exit $$status); see $(LINT_LOG)" >&2; \
-		cat "$(LINT_LOG)" >&2 || true; \
-		exit $$status; \
-	fi
+	@echo "lint: $(VERILATOR) $(VERILATOR_FLAGS) (per-file; avoids multi-top name clashes)"
+	@: > "$(LINT_LOG)"; \
+	status=0; \
+	for f in $(RTL_SRCS); do \
+		echo "lint: $$f" | tee -a "$(LINT_LOG)"; \
+		set +e; \
+		$(VERILATOR) $(VERILATOR_FLAGS) "$$f" >> "$(LINT_LOG)" 2>&1; \
+		s=$$?; \
+		set -e; \
+		if [ $$s -ne 0 ]; then \
+			status=$$s; \
+			echo "error: verilator lint failed for $$f (exit $$s); see $(LINT_LOG)" >&2; \
+			tail -n 40 "$(LINT_LOG)" >&2 || true; \
+			exit $$s; \
+		fi; \
+	done; \
+	if [ $$status -ne 0 ]; then exit $$status; fi
 	@touch MAKFILE_DEFINED LINT_TARGET_PASS
 	@echo "lint: OK — log $(LINT_LOG); wrote MAKFILE_DEFINED LINT_TARGET_PASS"
 
