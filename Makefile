@@ -1,9 +1,9 @@
 # LUM-MCU1 — repository foundation build contract
 # Machine-checkable entry points: make lint | make sim | make synth
 #
-# Toolchain routing (also declared in toolchains.yml):
-#   make lint, make sim  -> hdl_sim   (verilator container)
-#   make synth           -> hdl_synth (yosys container)
+# Toolchain routing (toolchains.yml + verification.yml):
+#   make lint, make sim  -> hdl_sim   (verilator runner)
+#   make synth           -> hdl_synth (yosys runner)
 #
 # Fail-fast: recipes preserve the underlying tool exit status for CI.
 
@@ -32,10 +32,14 @@ setup-check:
 	@echo "setup-check: rtl/ tb/ synth/ docs/ and setup.sh present"
 
 # ---------------------------------------------------------------------------
-# make lint — Verilator strict lint (hdl_sim / verilator runner ONLY)
+# make lint — Verilator strict lint
+# TOOLCHAIN: hdl_sim
+# RUNNER: verilator
 # Verilator is not available in the yosys runner; do not route lint there.
 # ---------------------------------------------------------------------------
 VERILATOR       ?= verilator
+# -Wall: catch width mismatches, unused signals, and style issues.
+# --lint-only: syntax/logic checks without building a simulation binary.
 VERILATOR_FLAGS ?= --lint-only -Wall -sv
 LINT_LOG        ?= lint.log
 
@@ -58,7 +62,9 @@ lint:
 	@echo "lint: OK — log $(LINT_LOG); wrote MAKFILE_DEFINED LINT_TARGET_PASS"
 
 # ---------------------------------------------------------------------------
-# make sim — cocotb + Icarus (hdl_sim / verilator runner)
+# make sim — cocotb + Icarus
+# TOOLCHAIN: hdl_sim
+# RUNNER: verilator
 # Minimal smoke path; fuller suite lands in a later story step.
 # ---------------------------------------------------------------------------
 SIM           ?= icarus
@@ -99,7 +105,9 @@ sim:
 	@echo "sim: OK — wrote $(COVERAGE_XML) MAKFILE_DEFINED SIM_TARGET_PASS"
 
 # ---------------------------------------------------------------------------
-# make synth — Yosys sky130hd-oriented synthesis (hdl_synth / yosys runner)
+# make synth — Yosys sky130hd-oriented synthesis
+# TOOLCHAIN: hdl_synth
+# RUNNER: yosys
 # Explicit .PHONY avoids vacuous success against the synth/ directory.
 # Full liberty-mapped OpenROAD flow lands in a later story step.
 # ---------------------------------------------------------------------------
