@@ -1,0 +1,16 @@
+# Simulation artifacts
+**/sim_build/
+**/results.xml
+**/*.vcd
+**/*.fst
+**/coverage.xml
+reports/coverage/*.html
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editor
+*.swp
+.DS_Store
