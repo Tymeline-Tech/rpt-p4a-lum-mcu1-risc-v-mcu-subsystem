@@ -28,12 +28,16 @@ venv/
 runs/
 results/
 
-# Verification gate markers (produced by make setup-check)
+# Verification gate markers (produced by make targets; never commit)
 RTL_DIR_EXISTS
 TB_DIR_EXISTS
 SYNTH_DIR_EXISTS
 DOCS_DIR_EXISTS
 SETUP_SCRIPT_EXISTS
+MAKFILE_DEFINED
+LINT_TARGET_PASS
+SIM_TARGET_PASS
+SYNTH_TARGET_PASS
 
 # Editor / OS noise
 .DS_Store
