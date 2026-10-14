@@ -149,33 +149,45 @@ sim:
 	@echo "sim: OK — wrote $(COVERAGE_XML) $(COCOTB_RESULTS_FILE) MAKFILE_DEFINED SIM_TARGET_PASS"
 
 # ---------------------------------------------------------------------------
-# make synth — Yosys sky130hd-oriented synthesis
+# make synth — Yosys sky130hd technology mapping (hdl_synth / yosys runner)
 # TOOLCHAIN: hdl_synth
 # RUNNER: yosys
-# Explicit .PHONY avoids vacuous success against the synth/ directory.
-# Full liberty-mapped OpenROAD flow lands in a later story step.
+#
+# Loads sky130hd cells via synth/sky130hd_cells.lib through
+# synth/sky130hd_synth.tcl (dfflibmap + abc). Missing techmap/liberty fails
+# fast with a non-zero exit for CI. Explicit .PHONY avoids vacuous success
+# against the synth/ directory.
 # ---------------------------------------------------------------------------
-YOSYS     ?= yosys
-NETLIST   ?= synth/$(TOP)_sky130hd.v
-SYNTH_LOG ?= synth.log
+YOSYS          ?= yosys
+SYNTH_SCRIPT   ?= synth/sky130hd_synth.tcl
+SKY130HD_LIB   ?= synth/sky130hd_cells.lib
+NETLIST        ?= synth/$(TOP)_sky130hd.v
+SYNTH_LOG      ?= synth.log
 
 synth:
 	@if [ -z "$(RTL_SRCS)" ]; then \
 		echo "error: no SystemVerilog sources found under rtl/" >&2; \
 		exit 1; \
 	fi
-	@echo "synth: $(YOSYS) sky130hd top=$(TOP) -> $(NETLIST)"
+	@test -f "$(SYNTH_SCRIPT)" || (echo "error: synthesis script missing: $(SYNTH_SCRIPT)" >&2; exit 1)
+	@if [ ! -f "$(SKY130HD_LIB)" ]; then \
+		echo "error: sky130hd techmap/liberty missing: $(SKY130HD_LIB)" >&2; \
+		echo "error: cannot technology-map for process node sky130hd" >&2; \
+		exit 1; \
+	fi
+	@echo "synth: $(YOSYS) -c $(SYNTH_SCRIPT) top=$(TOP) lib=$(SKY130HD_LIB) -> $(NETLIST)"
 	@mkdir -p synth
+	@rm -f "$(NETLIST)" "$(SYNTH_LOG)"
 	@set +e; \
-	$(YOSYS) -q -p \
-		"read_verilog -sv $(RTL_SRCS); hierarchy -check -top $(TOP); \
-		 proc; opt; fsm; opt; memory; opt; techmap; opt; clean; \
-		 write_verilog -noattr $(NETLIST); stat" \
-		> "$(SYNTH_LOG)" 2>&1; \
+	TOP="$(TOP)" \
+	RTL_SRCS="$(RTL_SRCS)" \
+	NETLIST="$(NETLIST)" \
+	SKY130HD_LIB="$(SKY130HD_LIB)" \
+	$(YOSYS) -c "$(SYNTH_SCRIPT)" > "$(SYNTH_LOG)" 2>&1; \
 	status=$$?; \
 	set -e; \
 	if [ $$status -ne 0 ]; then \
-		echo "error: yosys synthesis failed (exit $$status); see $(SYNTH_LOG)" >&2; \
+		echo "error: yosys sky130hd synthesis failed (exit $$status); see $(SYNTH_LOG)" >&2; \
 		cat "$(SYNTH_LOG)" >&2 || true; \
 		exit $$status; \
 	fi
